@@ -1,15 +1,22 @@
 {
   "name": "Tracker of Everything",
   "short_name": "Tracker",
-  "start_url": "./index.html",
+  "start_url": "/tracker-of-everything/",
+  "scope": "/tracker-of-everything/",
   "display": "standalone",
   "background_color": "#1b0f15",
   "theme_color": "#be1759",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
