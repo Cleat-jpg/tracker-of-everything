@@ -212,33 +212,52 @@ function renderDebts() {
 }
 
 /* ---------- budget ---------- */
+/* ---------- budget ---------- */
 function renderBudget() {
   const b = S.budget;
   if (!b || b.error) return errCard(b);
-  const used = b.items.reduce((a, i) => a + i.amount, 0);
-  const pctUsed = b.forMe ? Math.min(100, Math.round((used / b.forMe) * 100)) : 0;
+
+  const forMe = b.forMe || 0;
+  const items = b.items || [];
+
+  // Calculate totals and percentages directly from the amounts
+  const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
+  const left = forMe - totalAssigned;
+  const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
+  const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
+
   return `
-  <div class="card">
-    <div class="addbar"><h2 style="margin:0">Budget for ${esc(niceDate(b.date))}</h2><button class="btn ghost" data-a="bud-head">Edit</button></div>
-    <div class="kv" style="margin-top:12px">
-      <div><span>For me</span><b>${peso(b.forMe)}</b></div>
-      <div><span>Left to assign</span><b>${peso(b.left)}</b></div>
+  <div class="card hero" style="position:relative">
+    <button class="btn ghost" data-a="bud-head" style="position:absolute;top:16px;right:16px;border-color:rgba(255,255,255,0.3);color:#fff">Edit</button>
+    <div class="sub">Budget for ${esc(b.date || "–")}</div>
+    <div class="stats" style="margin-top:14px">
+      <div class="stat"><b>${peso(forMe)}</b><span>For me</span></div>
+      <div class="stat"><b>${peso(left)}</b><span>Left to assign</span></div>
     </div>
-    <div class="meter"><i style="width:${pctUsed}%"></i></div>
-    <div class="s muted" style="font-size:13px">${peso(used)} assigned · ${(b.leftPct * 100).toFixed(1)}% unassigned</div>
+    <div class="bar" style="margin-top:14px"><i style="width:${assignedPctClamped}%"></i></div>
+    <div class="sub" style="margin-top:6px">${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned</div>
   </div>
+
   <div class="card">
     <div class="addbar"><h2 style="margin:0">Plan</h2><button class="btn" data-a="bud-add">Add item</button></div>
-    ${b.items.length ? b.items.map((i) => `
-      <div class="row ${i.done ? "done" : ""}">
-        <button class="chk ${i.done ? "on" : ""}" data-a="bud-toggle" data-row="${i.row}" aria-label="Mark ${esc(i.desc)} as ${i.done ? "not done" : "done"}">${i.done ? "✓" : ""}</button>
-        <div class="body"><div class="t">${esc(i.desc)}</div><div class="s">${(i.pct * 100).toFixed(1)}% of what’s for me</div></div>
-        <div class="amt">${peso(i.amount)}</div>
-        <button class="edit" data-a="bud-edit" data-row="${i.row}" aria-label="Edit ${esc(i.desc)}">✎</button>
-      </div>`).join("") : '<div class="empty">Nothing budgeted yet.</div>'}
+    <div class="list" style="margin-top:10px">
+      ${items.map((it) => {
+        // Decide percentage automatically based on amount ÷ forMe
+        const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
+        return `
+        <div class="item ${it.done ? "done" : ""}">
+          <button class="check" data-a="bud-toggle" data-row="${it.row}">${it.done ? "✓" : ""}</button>
+          <div class="info">
+            <div class="name">${esc(it.desc)}</div>
+            <div class="sub">${itemPct}% of what’s for me</div>
+          </div>
+          <b class="amt">${peso(it.amount)}</b>
+          <button class="icon" data-a="bud-edit" data-row="${it.row}">✎</button>
+        </div>`;
+      }).join("")}
+    </div>
   </div>`;
 }
-
 /* ---------- savings ---------- */
 function renderSavings() {
   const s = S.savings;
