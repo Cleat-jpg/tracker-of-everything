@@ -212,7 +212,6 @@ function renderDebts() {
 }
 
 /* ---------- budget ---------- */
-/* ---------- budget ---------- */
 function renderBudget() {
   const b = S.budget;
   if (!b || b.error) return errCard(b);
@@ -220,44 +219,92 @@ function renderBudget() {
   const forMe = b.forMe || 0;
   const items = b.items || [];
 
-  // Calculate totals and percentages directly from the amounts
+  // Calculate totals and percentages dynamically from the amounts
   const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
   const left = forMe - totalAssigned;
   const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
   const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
 
+  // Format date nicely (e.g., Aug 15, 2026)
+  let dateLabel = b.date || '–';
+  if (dateLabel.includes('-')) {
+    const [y, m, d] = dateLabel.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    dateLabel = `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`;
+  }
+
   return `
-  <div class="card hero" style="position:relative">
-    <button class="btn ghost" data-a="bud-head" style="position:absolute;top:16px;right:16px;border-color:rgba(255,255,255,0.3);color:#fff">Edit</button>
-    <div class="sub">Budget for ${esc(b.date || "–")}</div>
-    <div class="stats" style="margin-top:14px">
-      <div class="stat"><b>${peso(forMe)}</b><span>For me</span></div>
-      <div class="stat"><b>${peso(left)}</b><span>Left to assign</span></div>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h2 style="margin:0; font-size:18px;">Budget for ${esc(dateLabel)}</h2>
+      <button class="btn ghost" data-a="bud-head" style="padding:6px 14px; font-size:13px;">Edit</button>
     </div>
-    <div class="bar" style="margin-top:14px"><i style="width:${assignedPctClamped}%"></i></div>
-    <div class="sub" style="margin-top:6px">${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned</div>
+
+    <div class="stats" style="display:flex; gap:12px; margin-bottom:14px;">
+      <div class="stat" style="flex:1; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px 14px;">
+        <span style="font-size:12px; color:var(--mute, #a89ba2); display:block; margin-bottom:4px;">For me</span>
+        <b style="font-size:18px; font-weight:700; color:#fff;">${peso(forMe)}</b>
+      </div>
+      <div class="stat" style="flex:1; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px 14px;">
+        <span style="font-size:12px; color:var(--mute, #a89ba2); display:block; margin-bottom:4px;">Left to assign</span>
+        <b style="font-size:18px; font-weight:700; color:#fff;">${peso(left)}</b>
+      </div>
+    </div>
+
+    <div class="bar" style="height:8px; background:rgba(255,255,255,0.1); border-radius:99px; overflow:hidden; margin-bottom:8px;">
+      <i style="display:block; height:100%; background:var(--accent, #be1759); width:${assignedPctClamped}%; border-radius:99px;"></i>
+    </div>
+    <div style="font-size:12px; color:var(--mute, #a89ba2);">
+      ${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned
+    </div>
   </div>
 
   <div class="card">
-    <div class="addbar"><h2 style="margin:0">Plan</h2><button class="btn" data-a="bud-add">Add item</button></div>
-    <div class="list" style="margin-top:10px">
+    <div class="addbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0;">Plan</h2>
+      <button class="btn" data-a="bud-add" style="padding:8px 16px;">Add item</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px;">
       ${items.map((it) => {
-        // Decide percentage automatically based on amount ÷ forMe
         const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
         return `
-        <div class="item ${it.done ? "done" : ""}">
-          <button class="check" data-a="bud-toggle" data-row="${it.row}">${it.done ? "✓" : ""}</button>
-          <div class="info">
-            <div class="name">${esc(it.desc)}</div>
-            <div class="sub">${itemPct}% of what’s for me</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); gap:12px;">
+          <!-- Checkbox -->
+          <button data-a="bud-toggle" data-row="${it.row}" style="
+            width:26px; height:26px; min-width:26px; border-radius:8px;
+            background:${it.done ? 'var(--accent, #be1759)' : 'rgba(255,255,255,0.05)'};
+            border:2px solid ${it.done ? 'var(--accent, #be1759)' : 'rgba(255,255,255,0.2)'};
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; color:#fff; font-size:14px; font-weight:bold; padding:0; outline:none;
+          ">${it.done ? '✓' : ''}</button>
+
+          <!-- Title & Percentage -->
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:#fff;'}">
+              ${esc(it.desc)}
+            </div>
+            <div style="font-size:12px; color:var(--mute, #a89ba2); margin-top:2px;">
+              ${itemPct}% of what’s for me
+            </div>
           </div>
-          <b class="amt">${peso(it.amount)}</b>
-          <button class="icon" data-a="bud-edit" data-row="${it.row}">✎</button>
+
+          <!-- Amount -->
+          <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute, #a89ba2);' : 'color:#fff;'}">
+            ${peso(it.amount)}
+          </b>
+
+          <!-- Edit Pencil -->
+          <button data-a="bud-edit" data-row="${it.row}" style="
+            background:transparent; border:none; cursor:pointer; color:var(--mute, #a89ba2);
+            font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
+          ">✎</button>
         </div>`;
       }).join("")}
     </div>
   </div>`;
 }
+
 /* ---------- savings ---------- */
 function renderSavings() {
   const s = S.savings;
