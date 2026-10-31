@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#be1759">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tracker">
+  <title>Tracker of Everything</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23be1759'/><text x='16' y='21' font-size='16' text-anchor='middle'>🌸</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="ttl">Tracker of everything</h1>
+      <small id="sub"> </small>
+    </div>
+    <button class="icon-btn" id="refresh" aria-label="Refresh">⟳</button>
+  </header>
+
+  <main id="app"></main>
+
+<nav id="nav">
+    <button data-v="home"><b></b>Home</button>
+    <button data-v="salary"><b></b>Salary</button>
+    <button data-v="debts"><b></b>Debts</button>
+    <button data-v="budget"><b></b>Budget</button>
+    <button data-v="savings"><b></b>Savings</button>
+    <button data-v="todo"><b></b>To-do</button>
+  </nav>
+
+  <div id="modal"></div>
+  <div id="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
