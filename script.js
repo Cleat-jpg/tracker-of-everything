@@ -403,9 +403,11 @@ $("#app").addEventListener("click", async (e) => {
       const it = row ? byRow(S.budget.items, row) : null;
       openModal({
         title: it ? "Edit budget item" : "Add budget item",
-        fields: [{ k: "desc", label: "Name", value: it ? it.desc : "", req: true, ph: "e.g. Food" },
-                 { k: "pct", label: "Share of what’s for me (%)", type: "number", value: it ? +(it.pct * 100).toFixed(2) : "", req: true }],
-        save: async (v) => { S.budget = await run("saveBudget", row || null, v.desc, v.pct); },
+        fields: [
+          { k: "desc", label: "Name", value: it ? it.desc : "", req: true, ph: "e.g. Food" },
+          { k: "amount", label: "Amount (₱)", type: "number", value: it ? it.amount : "", req: true, ph: "e.g. 1500" }
+        ],
+        save: async (v) => { S.budget = await run("saveBudget", row || null, v.desc, v.amount); },
         del: it ? async () => { S.budget = await run("deleteBudget", row); } : null
       });
     } else if (a === "bud-head") {
