@@ -103,7 +103,7 @@ function renderHome() {
 
   if (d.categories.length) {
     const top = parseNum(d.categories[0].amount) || 1;
-    html += `<div class="card"><h2>Where the money goes</h2>` +
+    html += `<div class="card"><h2>Top Expenses</h2>` +
       d.categories.map((c) => `
       <div class="cat"><span class="n">${esc(c.rank)}</span><span>${esc(c.name)}</span><b>${esc(c.amount)} <span class="muted" style="font-weight:400">${esc(c.pct)}</span></b>
         <div class="bar"><i style="width:${Math.min(100, (parseNum(c.amount) / top) * 100)}%"></i></div></div>`).join("") + `</div>`;
