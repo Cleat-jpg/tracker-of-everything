@@ -219,18 +219,25 @@ function renderBudget() {
   const forMe = b.forMe || 0;
   const items = b.items || [];
 
-  // Calculate totals and percentages dynamically from the amounts
+  // Calculate totals directly from amounts
   const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
   const left = forMe - totalAssigned;
   const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
   const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
 
-  // Format date nicely (e.g., Aug 15, 2026)
+  // Clean date formatter that avoids "undefined NaN"
   let dateLabel = b.date || '–';
-  if (dateLabel.includes('-')) {
-    const [y, m, d] = dateLabel.split('-');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    dateLabel = `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`;
+  if (b.date) {
+    const d = new Date(b.date);
+    if (!isNaN(d.getTime())) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      if (/^\d{4}-\d{2}-\d{2}/.test(b.date)) {
+        const parts = b.date.split(/[-T]/);
+        dateLabel = `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+      } else {
+        dateLabel = `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      }
+    }
   }
 
   return `
@@ -279,7 +286,7 @@ function renderBudget() {
             cursor:pointer; color:#fff; font-size:14px; font-weight:bold; padding:0; outline:none;
           ">${it.done ? '✓' : ''}</button>
 
-          <!-- Title & Percentage -->
+          <!-- Description & Auto-calculated % -->
           <div style="flex:1; min-width:0;">
             <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:#fff;'}">
               ${esc(it.desc)}
