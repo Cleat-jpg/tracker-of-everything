@@ -136,35 +136,50 @@ function renderSalary() {
   if (!s || s.error) return errCard(s);
   
   return `
-  <div class="card hero" style="position:relative">
-    <button class="btn ghost" data-a="sal-edit-dates" style="position:absolute;top:16px;right:16px;border-color:rgba(255,255,255,0.3);color:#fff">Edit</button>
-    <div class="sub">${esc(s.role)} · ${esc(s.start)} – ${esc(s.end)}</div>
+  <div class="card hero">
+    <div class="hero-head">
+      <div class="hero-meta">
+        <span class="role">${esc(s.role)}</span>
+        <span class="date-range">${esc(s.start)} – ${esc(s.end)}</span>
+      </div>
+      <button class="btn ghost" data-a="sal-edit-dates">Edit</button>
+    </div>
+    
     <div class="big">${peso(s.deducted)}</div>
     <div class="sub" style="margin-top:2px">Take-home salary</div>
-    <div class="stats" style="margin-top:16px">
+    
+    <div class="stats" style="margin-top:14px">
       <div class="stat"><b>${peso(s.expected)}</b><span>Gross expected</span></div>
       <div class="stat"><b>${peso(s.daily)}</b><span>Daily rate</span></div>
     </div>
   </div>
   
   <div class="card">
-    <div class="addbar"><h2 style="margin:0">Work breakdown</h2><button class="btn" data-a="sal-edit-hours">Edit hours</button></div>
+    <div class="addbar">
+      <h2 style="margin:0">Work breakdown</h2>
+      <button class="btn" data-a="sal-edit-hours" style="padding:7px 14px; font-size:13px">Edit hours</button>
+    </div>
     <div class="scroll" style="margin-top:10px">
-      <table>
-        <tr><th>Type</th><th>Count</th><th>Pay</th><th>Rate</th></tr>
+      <table class="table-responsive">
+        <tr>
+          <th style="text-align:left">Type</th>
+          <th>Count</th>
+          <th>Pay</th>
+          <th style="text-align:right">Rate</th>
+        </tr>
         ${s.workItems.map(i => `
           <tr>
-            <td><b>${esc(i.type)}</b></td>
+            <td style="text-align:left; font-weight:600">${esc(i.type)}</td>
             <td>${i.count || '–'}</td>
-            <td><b>${peso(i.pay)}</b></td>
-            <td>${esc(i.pct)}</td>
+            <td style="font-weight:600">${peso(i.pay)}</td>
+            <td style="text-align:right; color:var(--mute)">${esc(i.pct)}</td>
           </tr>
         `).join('')}
       </table>
     </div>
-  </div>
   </div>`;
 }
+
 
 /* ---------- debts ---------- */
 function renderDebts() {
