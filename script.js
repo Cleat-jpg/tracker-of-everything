@@ -91,13 +91,18 @@ function renderHome() {
     <div class="sub" style="margin-top:12px">${esc(s.periods || "")} · ${esc(s.ratio || "")} expense ratio</div>
   </div>`;
 
-  if (d.periods.length) {
-    const nets = d.periods.map((p) => parseNum(p.net));
+    if (d.months.length) {
+    const nets = d.months.map((m) => parseNum(m.net));
     const max = Math.max(...nets, 1);
-    html += `<div class="card"><h2>Net gain per pay period</h2><div class="chart">` +
-      d.periods.map((p, i) => {
-        const [m, dd] = p.date.replace(",", "").split(" ");
-        return `<div class="col"><em>${compact(nets[i])}</em><i style="height:${Math.max(2, (nets[i] / max) * 100)}px"></i><span>${esc(m.slice(0, 3) + " " + dd)}</span></div>`;
+    html += `<div class="card"><h2>Net gain per month</h2><div class="chart" style="justify-content:space-between;">` +
+      d.months.map((m, i) => {
+        const parts = m.month.split(" ");
+        const label = parts[0].slice(0, 3) + (parts[1] ? " '" + parts[1].slice(-2) : "");
+        return `<div class="col" style="flex:1; min-width:34px;">
+          <em>${compact(nets[i])}</em>
+          <i style="height:${Math.max(2, (nets[i] / max) * 100)}px"></i>
+          <span>${esc(label)}</span>
+        </div>`;
       }).join("") + `</div></div>`;
   }
 
