@@ -75,14 +75,71 @@ header small {
   font-weight: 500;
 }
 
+/* Perfectly center the refresh icon */
 .icon-btn {
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: 12px;
   width: 40px;
   height: 40px;
-  font-size: 18px;
+  font-size: 19px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Flexible header for Hero cards so the Edit button never collides with dates */
+.hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.hero-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.hero-meta .role {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.hero-meta .date-range {
+  display: block;
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.hero-head .btn.ghost {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+/* Prevent mobile clipping on the salary breakdown table */
+.table-responsive {
+  min-width: 100% !important;
+  width: 100% !important;
+  font-size: 13px;
+}
+
+.table-responsive th,
+.table-responsive td {
+  padding: 8px 4px;
 }
 
 main {
