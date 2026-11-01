@@ -4,7 +4,9 @@
   <link rel="manifest" href="manifest.json">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#be1759">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fff5f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b0f15" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Tracker">
   <title>Tracker of Everything</title>
@@ -18,6 +20,7 @@
   <header>
     <div>
       <h1 id="ttl">Tracker of everything</h1>
+      <small id="sub"> </small>
     </div>
     <button class="icon-btn" id="refresh" aria-label="Refresh">⟳</button>
   </header>
