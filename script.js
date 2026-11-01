@@ -70,7 +70,8 @@ function render() {
   }
   try {
     const d = S.dashboard;
-    if (d && !d.error && d.title) $("#sub").textContent = d.title.replace(/[🌸]/gu, "").replace(/^\s*FINANCIAL DASHBOARD\s*/i, "").replace(/[()]/g, "").trim();
+    const subEl = $("#sub");
+    if (subEl && d && !d.error && d.title) subEl.textContent = d.title.replace(/[🌸]/gu, "").replace(/^\s*FINANCIAL DASHBOARD\s*/i, "").replace(/[()]/g, "").trim();
     el.innerHTML = { home: renderHome, salary: renderSalary, debts: renderDebts, budget: renderBudget, savings: renderSavings, todo: renderTodo }[view]();
   } catch (err) {
     console.error(err);
