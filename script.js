@@ -8,7 +8,10 @@ const run = async (fn, ...args) => {
     method: "POST",
     body: JSON.stringify({ fn, args })
   });
-  const json = await res.json();
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch (e) { throw new Error("The Apps Script sent back a web page instead of data. Check that the latest version is deployed and access is set to Anyone."); }
   if (json.status === "error") throw new Error(json.error);
   return json.data;
 };
@@ -20,11 +23,11 @@ const parseNum = (s) => Number(String(s).replace(/[^0-9.\-]/g, "")) || 0;
 const esc = (s) => {
   if (s == null) return "";
   return String(s)
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll('"', '"')
-    .replaceAll("'", "'");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 };
 
 const compact = (n) => (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(Math.round(n)));
@@ -36,29 +39,43 @@ const niceDate = (iso) => {
 };
 
 let S = null;          // all data from the sheet
+let loadError = "";    // last load failure, shown on screen
 let view = "home";
 let cat = "ALL";       // to-do category filter
 let showDone = false;  // show finished to-dos
 
 /* ---------- loading ---------- */
 async function load() {
+  render();
   try {
     S = await run("getAll");
+    loadError = "";
   } catch (e) {
-    toast("Couldn't reach the sheet. Check your connection and refresh.");
+    loadError = String((e && e.message) || e);
+    toast("Couldn’t reach the sheet. Check your connection and refresh.");
   }
   render();
 }
-$("#refresh").onclick = () => { S = null; render(); load(); };
+$("#refresh").onclick = () => { S = null; loadError = ""; load(); };
 
 /* ---------- shell ---------- */
 function render() {
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === view));
   const el = $("#app");
-  if (!S) { el.innerHTML = '<div class="empty">Loading your tracker…</div>'; return; }
-  const d = S.dashboard;
-  if (d && !d.error && d.title) $("#sub").textContent = d.title.replace(/[🌸]/gu, "").replace(/^\s*FINANCIAL DASHBOARD\s*/i, "").replace(/[()]/g, "").trim();
-  el.innerHTML = { home: renderHome, salary: renderSalary, debts: renderDebts, budget: renderBudget, savings: renderSavings, todo: renderTodo }[view]();
+  if (!S) {
+    el.innerHTML = loadError
+      ? '<div class="card err">Couldn’t load your data: ' + esc(loadError) + '<br><br>Tap ⟳ to try again.</div>'
+      : '<div class="empty">Loading your tracker…</div>';
+    return;
+  }
+  try {
+    const d = S.dashboard;
+    if (d && !d.error && d.title) $("#sub").textContent = d.title.replace(/[🌸]/gu, "").replace(/^\s*FINANCIAL DASHBOARD\s*/i, "").replace(/[()]/g, "").trim();
+    el.innerHTML = { home: renderHome, salary: renderSalary, debts: renderDebts, budget: renderBudget, savings: renderSavings, todo: renderTodo }[view]();
+  } catch (err) {
+    console.error(err);
+    el.innerHTML = '<div class="card err">This tab hit an error while drawing: ' + esc(err && err.message) + '</div>';
+  }
 }
 $("#nav").onclick = (e) => {
   const b = e.target.closest("button[data-v]");
