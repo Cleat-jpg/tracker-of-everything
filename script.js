@@ -3,11 +3,26 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycby0IiEHNm_6S0OFkxiAWes4
 const $ = (s) => document.querySelector(s);
 
 // Session token (from the passphrase login) is kept on this device only
+// Session token (from the passphrase login) is kept on this device only
 const TOKEN_KEY = "tracker_token";
 const store = {
   get: () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } },
   set: (v) => { try { localStorage.setItem(TOKEN_KEY, v); } catch (e) {} },
   clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+};
+
+// Manages the 3 most recent budget logs locally
+const historyStore = {
+  get: () => {
+    try { return JSON.parse(localStorage.getItem("budget_history")) || []; }
+    catch (e) { return []; }
+  },
+  add: (log) => {
+    const logs = historyStore.get();
+    logs.unshift(log); // Add new log to the beginning
+    if (logs.length > 3) logs.pop(); // Keep only the latest 3
+    try { localStorage.setItem("budget_history", JSON.stringify(logs)); } catch (e) {}
+  }
 };
 
 // Calls Apps Script backend over HTTP from GitHub Pages
@@ -287,106 +302,18 @@ function renderDebts() {
   </div>`;
 }
 
-/* ---------- budget ---------- */
-function renderBudget() {
-  const b = S.budget;
-  if (!b || b.error) return errCard(b);
-
-  const forMe = b.forMe || 0;
-  const items = b.items || [];
-
-  const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
-  const left = forMe - totalAssigned;
-  const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
-  const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
-
-  let dateLabel = b.date || '–';
-  if (b.date) {
-    const d = new Date(b.date);
-    if (!isNaN(d.getTime())) {
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      if (/^\d{4}-\d{2}-\d{2}/.test(b.date)) {
-        const parts = b.date.split(/[-T]/);
-        dateLabel = `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
-      } else {
-        dateLabel = `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-      }
-    }
+const historyStore = {
+  get: () => {
+    try { return JSON.parse(localStorage.getItem("budget_history")) || []; }
+    catch (e) { return []; }
+  },
+  add: (log) => {
+    const logs = historyStore.get();
+    logs.unshift(log);
+    if (logs.length > 3) logs.pop();
+    try { localStorage.setItem("budget_history", JSON.stringify(logs)); } catch (e) {}
   }
-
-  return `
-  <div class="card hero">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h2 style="margin:0; font-size:18px;">Budget for ${esc(dateLabel)}</h2>
-      <button class="btn ghost" data-a="bud-head" style="padding:6px 14px; font-size:13px;">Edit</button>
-    </div>
-
-    <div class="stats" style="margin-top:0;">
-      <div class="stat">
-        <span>For me</span>
-        <b>${peso(forMe)}</b>
-      </div>
-      <div class="stat">
-        <span>Left to assign</span>
-        <b>${peso(left)}</b>
-      </div>
-    </div>
-
-    <div class="meter"><i style="width:${assignedPctClamped}%"></i></div>
-    <div class="sub" style="font-size:12.5px; margin-top:6px;">
-      ${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="addbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h2 style="margin:0;">Plan</h2>
-      <button class="btn" data-a="bud-add" style="padding:8px 16px;">Add item</button>
-    </div>
-
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      ${items.map((it) => {
-        const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
-        return `
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:12px;">
-          <button data-a="bud-toggle" data-row="${it.row}" style="
-            width:26px; height:26px; min-width:26px; border-radius:8px;
-            background:${it.done ? 'var(--accent)' : 'transparent'};
-            border:2px solid var(--accent);
-            display:flex; align-items:center; justify-content:center;
-            cursor:pointer; color:var(--accent-ink); font-size:14px; font-weight:bold; padding:0; outline:none;
-          ">${it.done ? '✓' : ''}</button>
-
-          <div style="flex:1; min-width:0;">
-            <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:var(--ink);'}">
-              ${esc(it.desc)}
-            </div>
-            <div style="font-size:12px; color:var(--mute); margin-top:2px;">
-              ${itemPct}% of what’s for me
-            </div>
-          </div>
-
-          <!-- Amount and Actions Group -->
-          <div style="display:flex; align-items:center; gap:8px;">
-            <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
-              ${peso(it.amount)}
-            </b>
-            <div style="display:flex; align-items:center; gap:2px;">
-              <button data-a="bud-log" data-row="${it.row}" style="
-                background:var(--soft); color:var(--accent); border:none; 
-                padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
-              ">LOG</button>
-              <button data-a="bud-edit" data-row="${it.row}" style="
-                background:transparent; border:none; cursor:pointer; color:var(--mute);
-                font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
-              ">✎</button>
-            </div>
-          </div>
-        </div>`;
-      }).join("")}
-    </div>
-  </div>`;
-}
+};
 
 /* ---------- savings ---------- */
 function renderSavings() {
@@ -569,10 +496,31 @@ $("#app").addEventListener("click", async (e) => {
           if (!v.spent && !v.added) return; // Do nothing if left blank
           
           let newAmt = it.amount;
-          if (v.spent) newAmt -= Math.abs(Number(v.spent));
-          if (v.added) newAmt += Math.abs(Number(v.added));
+          let logMsg = "";
           
-          newAmt = Math.max(0, newAmt); // Prevent the budget from going negative
+          if (v.spent) {
+            const spent = Math.abs(Number(v.spent));
+            newAmt -= spent;
+            logMsg = `Spent ${peso(spent)} on ${it.desc}`;
+          }
+          if (v.added) {
+            const added = Math.abs(Number(v.added));
+            newAmt += added;
+            logMsg = `Added ${peso(added)} to ${it.desc}`;
+          }
+          if (v.spent && v.added) {
+            logMsg = `Adjusted ${it.desc} (Spent ${peso(v.spent)}, Added ${peso(v.added)})`;
+          }
+          
+          newAmt = Math.max(0, newAmt); // Prevent negative budget
+          
+          // Save the log to local history with a timestamp
+          historyStore.add({
+            msg: logMsg,
+            time: new Date().toLocaleTimeString("en-PH", { hour: 'numeric', minute: '2-digit' }),
+            date: new Date().toLocaleDateString("en-PH", { month: 'short', day: 'numeric' })
+          });
+          
           S.budget = await run("saveBudget", row, it.desc, newAmt);
         }
       });
