@@ -327,7 +327,8 @@ function renderBudget() {
     }
   }
 
-  const history = historyStore.get();
+  // History comes directly from the server for all sessions
+  const history = b.history || [];
 
   return `
   <div class="card hero">
@@ -381,7 +382,6 @@ function renderBudget() {
             </div>
           </div>
 
-          <!-- Amount and Actions Group -->
           <div style="display:flex; align-items:center; gap:8px;">
             <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
               ${peso(it.amount)}
@@ -402,7 +402,7 @@ function renderBudget() {
     </div>
   </div>
 
-  <!-- Recent Activity -->
+  <!-- Recent Activity (Synchronized Across All Sessions) -->
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <h2 style="margin:0; font-size:16px;">Recent Activity</h2>
