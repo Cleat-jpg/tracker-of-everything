@@ -54,7 +54,7 @@ const esc = (s) => {
     .replaceAll("&", "&")
     .replaceAll("<", "<")
     .replaceAll(">", ">")
-    .replaceAll('"', """)
+    .replaceAll('"', '"')
     .replaceAll("'", "'");
 };
 
