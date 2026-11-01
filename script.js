@@ -434,7 +434,10 @@ $("#app").addEventListener("click", async (e) => {
                  { k: "rh", label: "Regular Holiday (RH)", type: "number", value: getC("RH") },
                  { k: "uh", label: "US Holiday (UH)", type: "number", value: getC("UH") },
                  { k: "sh", label: "Special Holiday (SH)", type: "number", value: getC("SH") },
-                 { k: "ot", label: "Overtime (OT)", type: "number", value: getC("OT") }],
+                 { k: "ot", label: "Overtime (OT)", type: "number", value: getC("OT") },
+                 { k: "otrh", label: "Overtime on Regular Holiday (OT/RH)", type: "number", value: getC("OT/RH") },
+                 { k: "erh", label: "Evening on Regular Holiday (E/RH)", type: "number", value: getC("E/RH") },
+                 { k: "euh", label: "Evening on US Holiday (E/UH)", type: "number", value: getC("E/UH") }],
         save: async (v) => { 
           S.salary = await run("saveSalaryHours", [
             { t: "BASIC", v: v.basic },
@@ -442,7 +445,10 @@ $("#app").addEventListener("click", async (e) => {
             { t: "RH", v: v.rh },
             { t: "UH", v: v.uh },
             { t: "SH", v: v.sh },
-            { t: "OT", v: v.ot }
+            { t: "OT", v: v.ot },
+            { t: "OT/RH", v: v.otrh },
+            { t: "E/RH", v: v.erh },
+            { t: "E/UH", v: v.euh }
           ]); 
         }
       });
