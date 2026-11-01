@@ -2,17 +2,31 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycby0IiEHNm_6S0OFkxiAWes4
 
 const $ = (s) => document.querySelector(s);
 
+// Session token (from the passphrase login) is kept on this device only
+const TOKEN_KEY = "tracker_token";
+const store = {
+  get: () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } },
+  set: (v) => { try { localStorage.setItem(TOKEN_KEY, v); } catch (e) {} },
+  clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+};
+
 // Calls Apps Script backend over HTTP from GitHub Pages
 const run = async (fn, ...args) => {
   const res = await fetch(GAS_URL, {
     method: "POST",
-    body: JSON.stringify({ fn, args })
+    body: JSON.stringify({ fn, args, token: store.get() })
   });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); }
   catch (e) { throw new Error("The Apps Script sent back a web page instead of data. Check that the latest version is deployed and access is set to Anyone."); }
-  if (json.status === "error") throw new Error(json.error);
+  if (json.status === "error") {
+    if (json.error === "UNAUTHORIZED") {
+      store.clear(); S = null; locked = true; loginMsg = "Your session ended. Please sign in again.";
+      throw new Error("Signed out");
+    }
+    throw new Error(json.error);
+  }
   return json.data;
 };
 
@@ -40,19 +54,25 @@ const niceDate = (iso) => {
 
 let S = null;          // all data from the sheet
 let loadError = "";    // last load failure, shown on screen
+let locked = false;     // true while the sign-in screen is showing
+let loginMsg = "";     // message on the sign-in screen
 let view = "home";
 let cat = "ALL";       // to-do category filter
 let showDone = false;  // show finished to-dos
 
 /* ---------- loading ---------- */
 async function load() {
+  if (!store.get()) { locked = true; S = null; render(); return; }
+  locked = false;
   render();
   try {
     S = await run("getAll");
     loadError = "";
   } catch (e) {
-    loadError = String((e && e.message) || e);
-    toast("Couldn’t reach the sheet. Check your connection and refresh.");
+    if (!locked) {
+      loadError = String((e && e.message) || e);
+      toast("Couldn’t reach the sheet. Check your connection and refresh.");
+    }
   }
   render();
 }
@@ -62,6 +82,7 @@ $("#refresh").onclick = () => { S = null; loadError = ""; load(); };
 function render() {
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === view));
   const el = $("#app");
+  if (locked) { el.innerHTML = loginHtml(); bindLogin(); return; }
   if (!S) {
     el.innerHTML = loadError
       ? '<div class="card err">Couldn’t load your data: ' + esc(loadError) + '<br><br>Tap ⟳ to try again.</div>'
@@ -73,6 +94,8 @@ function render() {
     const subEl = $("#sub");
     if (subEl && d && !d.error && d.title) subEl.textContent = d.title.replace(/[🌸]/gu, "").replace(/^\s*FINANCIAL DASHBOARD\s*/i, "").replace(/[()]/g, "").trim();
     el.innerHTML = { home: renderHome, salary: renderSalary, debts: renderDebts, budget: renderBudget, savings: renderSavings, todo: renderTodo }[view]();
+    el.insertAdjacentHTML("beforeend", '<div style="text-align:center;margin:8px 0 24px"><button class="btn ghost" id="signout">Sign out</button></div>');
+    $("#signout").onclick = () => { store.clear(); S = null; locked = true; loginMsg = ""; render(); };
   } catch (err) {
     console.error(err);
     el.innerHTML = '<div class="card err">This tab hit an error while drawing: ' + esc(err && err.message) + '</div>';
@@ -86,6 +109,34 @@ $("#nav").onclick = (e) => {
 function errCard(x) {
   return '<div class="card err">This tab didn’t load' + (x && x.error ? ": " + esc(x.error) : ".") + "</div>";
 }
+function loginHtml() {
+  return `<div class="card" style="margin-top:28px">
+    <h2>Sign in</h2>
+    <p class="muted" style="margin:0 0 12px">Enter your passphrase to open the tracker.</p>
+    ${loginMsg ? `<p class="err" role="alert" style="margin:0 0 10px">${esc(loginMsg)}</p>` : ""}
+    <label for="pw" class="muted" style="display:block;font-size:13.5px">Passphrase</label>
+    <input id="pw" type="password" autocomplete="current-password" style="display:block;width:100%;margin:4px 0 14px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:16px">
+    <button class="btn" id="pw-go" style="width:100%">Unlock</button>
+  </div>`;
+}
+function bindLogin() {
+  const go = $("#pw-go"), pw = $("#pw");
+  const submit = async () => {
+    const v = pw.value;
+    if (!v) { pw.focus(); return; }
+    go.disabled = true; go.textContent = "Checking…";
+    try {
+      const token = await run("login", v);
+      store.set(token); locked = false; loginMsg = ""; load();
+    } catch (e) {
+      loginMsg = String((e && e.message) || "Couldn’t sign in."); render();
+    }
+  };
+  go.onclick = submit;
+  pw.onkeydown = (e) => { if (e.key === "Enter") submit(); };
+  pw.focus();
+}
+
 function toast(msg) {
   const t = $("#toast");
   t.textContent = msg; t.style.display = "block";
