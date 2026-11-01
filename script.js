@@ -619,12 +619,8 @@ $("#app").addEventListener("click", async (e) => {
             logMsg = `Adjusted ${it.desc} (Spent ${peso(v.spent)}, Added ${peso(v.added)})`;
           }
           newAmt = Math.max(0, newAmt);
-          historyStore.add({
-            msg: logMsg,
-            time: new Date().toLocaleTimeString("en-PH", { hour: 'numeric', minute: '2-digit' }),
-            date: new Date().toLocaleDateString("en-PH", { month: 'short', day: 'numeric' })
-          });
-          S.budget = await run("saveBudget", row, it.desc, newAmt);
+          // Sends the log message to Apps Script backend so it's stored globally
+          S.budget = await run("saveBudget", row, it.desc, newAmt, logMsg);
         }
       });
     } else if (a === "bud-add" || a === "bud-edit") {
