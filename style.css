@@ -2,7 +2,7 @@
   --bg: #fff5f8;
   --card: #ffffff;
   --ink: #2b1420;
-  --mute: #8c6c7a;
+  --mute: #7a5a69;
   --line: #f2d9e3;
   --accent: #be1759;
   --accent-ink: #ffffff;
@@ -11,6 +11,7 @@
   --warn: #b4531a;
   --serif: "Fraunces", Georgia, "Times New Roman", serif;
   --sans: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light dark;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -126,8 +127,8 @@ header small {
   flex-shrink: 0;
   padding: 6px 14px;
   font-size: 13px;
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  border-color: currentColor;
+  color: var(--accent-ink);
 }
 
 /* Prevent mobile clipping on the salary breakdown table */
