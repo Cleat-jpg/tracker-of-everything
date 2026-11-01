@@ -317,7 +317,7 @@ function renderBudget() {
   return `
   <div class="card hero">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h2 style="margin:0; font-size:20px;">Budget for ${esc(dateLabel)}</h2>
+      <h2 style="margin:0; font-size:18px;">Budget for ${esc(dateLabel)}</h2>
       <button class="btn ghost" data-a="bud-head" style="padding:6px 14px; font-size:13px;">Edit</button>
     </div>
 
@@ -352,7 +352,7 @@ function renderBudget() {
           <button data-a="bud-toggle" data-row="${it.row}" style="
             width:26px; height:26px; min-width:26px; border-radius:8px;
             background:${it.done ? 'var(--accent)' : 'transparent'};
-            border:2px solid ${it.done ? 'var(--accent)' : 'var(--accent)'};
+            border:2px solid var(--accent);
             display:flex; align-items:center; justify-content:center;
             cursor:pointer; color:var(--accent-ink); font-size:14px; font-weight:bold; padding:0; outline:none;
           ">${it.done ? '✓' : ''}</button>
@@ -366,14 +366,22 @@ function renderBudget() {
             </div>
           </div>
 
-          <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
-            ${peso(it.amount)}
-          </b>
-
-          <button data-a="bud-edit" data-row="${it.row}" style="
-            background:transparent; border:none; cursor:pointer; color:var(--mute);
-            font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
-          ">✎</button>
+          <!-- Amount and Actions Group -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
+              ${peso(it.amount)}
+            </b>
+            <div style="display:flex; align-items:center; gap:2px;">
+              <button data-a="bud-log" data-row="${it.row}" style="
+                background:var(--soft); color:var(--accent); border:none; 
+                padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
+              ">LOG</button>
+              <button data-a="bud-edit" data-row="${it.row}" style="
+                background:transparent; border:none; cursor:pointer; color:var(--mute);
+                font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
+              ">✎</button>
+            </div>
+          </div>
         </div>`;
       }).join("")}
     </div>
@@ -546,6 +554,30 @@ $("#app").addEventListener("click", async (e) => {
     } else if (a === "bud-toggle") {
       const it = byRow(S.budget.items, row); it.done = !it.done; render();
       S.budget = await run("setBudgetDone", row, it.done); render();
+    
+    // --- NEW LOGIC FOR EXPENSE TRACKING ---
+    } else if (a === "bud-log") {
+      const it = byRow(S.budget.items, row);
+      if (!it) return;
+      openModal({
+        title: `Track ${esc(it.desc)}`,
+        fields: [
+          { k: "spent", label: "Amount spent (Subtracts from budget ₱)", type: "number", ph: "e.g. 200" },
+          { k: "added", label: "Amount added (Increases budget ₱)", type: "number", ph: "e.g. 500" }
+        ],
+        save: async (v) => {
+          if (!v.spent && !v.added) return; // Do nothing if left blank
+          
+          let newAmt = it.amount;
+          if (v.spent) newAmt -= Math.abs(Number(v.spent));
+          if (v.added) newAmt += Math.abs(Number(v.added));
+          
+          newAmt = Math.max(0, newAmt); // Prevent the budget from going negative
+          S.budget = await run("saveBudget", row, it.desc, newAmt);
+        }
+      });
+    // --------------------------------------
+
     } else if (a === "bud-add" || a === "bud-edit") {
       const it = row ? byRow(S.budget.items, row) : null;
       openModal({
