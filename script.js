@@ -3,7 +3,6 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycby0IiEHNm_6S0OFkxiAWes4
 const $ = (s) => document.querySelector(s);
 
 // Session token (from the passphrase login) is kept on this device only
-// Session token (from the passphrase login) is kept on this device only
 const TOKEN_KEY = "tracker_token";
 const store = {
   get: () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } },
@@ -19,8 +18,8 @@ const historyStore = {
   },
   add: (log) => {
     const logs = historyStore.get();
-    logs.unshift(log); // Add new log to the beginning
-    if (logs.length > 3) logs.pop(); // Keep only the latest 3
+    logs.unshift(log);
+    if (logs.length > 3) logs.pop();
     try { localStorage.setItem("budget_history", JSON.stringify(logs)); } catch (e) {}
   }
 };
@@ -52,11 +51,11 @@ const parseNum = (s) => Number(String(s).replace(/[^0-9.\-]/g, "")) || 0;
 const esc = (s) => {
   if (s == null) return "";
   return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replaceAll("&", "&")
+    .replaceAll("<", "<")
+    .replaceAll(">", ">")
+    .replaceAll('"', """)
+    .replaceAll("'", "'");
 };
 
 const compact = (n) => (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(Math.round(n)));
@@ -69,7 +68,7 @@ const niceDate = (iso) => {
 
 let S = null;          // all data from the sheet
 let loadError = "";    // last load failure, shown on screen
-let locked = false;     // true while the sign-in screen is showing
+let locked = false;    // true while the sign-in screen is showing
 let loginMsg = "";     // message on the sign-in screen
 let view = "home";
 let cat = "ALL";       // to-do category filter
@@ -175,7 +174,7 @@ function renderHome() {
     <div class="sub" style="margin-top:12px">${esc(s.periods || "")} · ${esc(s.ratio || "")} expense ratio</div>
   </div>`;
 
-    if (d.months.length) {
+  if (d.months.length) {
     const nets = d.months.map((m) => parseNum(m.net));
     const max = Math.max(...nets, 1);
     html += `<div class="card"><h2>Net gain per month</h2><div class="chart" style="justify-content:space-between;">` +
@@ -264,7 +263,6 @@ function renderSalary() {
   </div>`;
 }
 
-
 /* ---------- debts ---------- */
 function renderDebts() {
   const d = S.debts;
@@ -302,18 +300,131 @@ function renderDebts() {
   </div>`;
 }
 
-const historyStore = {
-  get: () => {
-    try { return JSON.parse(localStorage.getItem("budget_history")) || []; }
-    catch (e) { return []; }
-  },
-  add: (log) => {
-    const logs = historyStore.get();
-    logs.unshift(log);
-    if (logs.length > 3) logs.pop();
-    try { localStorage.setItem("budget_history", JSON.stringify(logs)); } catch (e) {}
+/* ---------- budget ---------- */
+function renderBudget() {
+  const b = S.budget;
+  if (!b || b.error) return errCard(b);
+
+  const forMe = b.forMe || 0;
+  const items = b.items || [];
+
+  const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
+  const left = forMe - totalAssigned;
+  const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
+  const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
+
+  let dateLabel = b.date || '–';
+  if (b.date) {
+    const d = new Date(b.date);
+    if (!isNaN(d.getTime())) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      if (/^\d{4}-\d{2}-\d{2}/.test(b.date)) {
+        const parts = b.date.split(/[-T]/);
+        dateLabel = `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+      } else {
+        dateLabel = `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      }
+    }
   }
-};
+
+  const history = historyStore.get();
+
+  return `
+  <div class="card hero">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0; font-size:20px;">Budget for ${esc(dateLabel)}</h2>
+      <button class="btn ghost" data-a="bud-head" style="padding:6px 14px; font-size:13px;">Edit</button>
+    </div>
+
+    <div class="stats" style="margin-top:0;">
+      <div class="stat">
+        <span>For me</span>
+        <b>${peso(forMe)}</b>
+      </div>
+      <div class="stat">
+        <span>Left to assign</span>
+        <b>${peso(left)}</b>
+      </div>
+    </div>
+
+    <div class="meter"><i style="width:${assignedPctClamped}%"></i></div>
+    <div class="sub" style="font-size:12.5px; margin-top:6px;">
+      ${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="addbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0;">Plan</h2>
+      <button class="btn" data-a="bud-add" style="padding:8px 16px;">Add item</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${items.map((it) => {
+        const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
+        return `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:12px;">
+          <button data-a="bud-toggle" data-row="${it.row}" style="
+            width:26px; height:26px; min-width:26px; border-radius:8px;
+            background:${it.done ? 'var(--accent)' : 'transparent'};
+            border:2px solid var(--accent);
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; color:var(--accent-ink); font-size:14px; font-weight:bold; padding:0; outline:none;
+          ">${it.done ? '✓' : ''}</button>
+
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:var(--ink);'}">
+              ${esc(it.desc)}
+            </div>
+            <div style="font-size:12px; color:var(--mute); margin-top:2px;">
+              ${itemPct}% of what’s for me
+            </div>
+          </div>
+
+          <!-- Amount and Actions Group -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
+              ${peso(it.amount)}
+            </b>
+            <div style="display:flex; align-items:center; gap:2px;">
+              <button data-a="bud-log" data-row="${it.row}" style="
+                background:var(--soft); color:var(--accent); border:none; 
+                padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
+              ">LOG</button>
+              <button data-a="bud-edit" data-row="${it.row}" style="
+                background:transparent; border:none; cursor:pointer; color:var(--mute);
+                font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
+              ">✎</button>
+            </div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h2 style="margin:0; font-size:16px;">Recent Activity</h2>
+      <span style="font-size:12px; color:var(--mute);">Last 3 edits</span>
+    </div>
+
+    ${history.length > 0 ? `
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${history.map((log) => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13.5px;">
+            <div>
+              <span style="color:var(--ink); font-weight:500;">${esc(log.msg)}</span>
+            </div>
+            <span style="color:var(--mute); font-size:12px; white-space:nowrap; margin-left:8px;">
+              ${esc(log.date)} · ${esc(log.time)}
+            </span>
+          </div>
+        `).join("")}
+      </div>`
+    : `<div class="empty" style="padding:16px 0; font-size:13.5px;">No recent edits yet. Logs will appear here.</div>`}
+  </div>`;
+}
 
 /* ---------- savings ---------- */
 function renderSavings() {
@@ -481,8 +592,6 @@ $("#app").addEventListener("click", async (e) => {
     } else if (a === "bud-toggle") {
       const it = byRow(S.budget.items, row); it.done = !it.done; render();
       S.budget = await run("setBudgetDone", row, it.done); render();
-    
-    // --- NEW LOGIC FOR EXPENSE TRACKING ---
     } else if (a === "bud-log") {
       const it = byRow(S.budget.items, row);
       if (!it) return;
@@ -493,11 +602,9 @@ $("#app").addEventListener("click", async (e) => {
           { k: "added", label: "Amount added (Increases budget ₱)", type: "number", ph: "e.g. 500" }
         ],
         save: async (v) => {
-          if (!v.spent && !v.added) return; // Do nothing if left blank
-          
+          if (!v.spent && !v.added) return;
           let newAmt = it.amount;
           let logMsg = "";
-          
           if (v.spent) {
             const spent = Math.abs(Number(v.spent));
             newAmt -= spent;
@@ -511,21 +618,15 @@ $("#app").addEventListener("click", async (e) => {
           if (v.spent && v.added) {
             logMsg = `Adjusted ${it.desc} (Spent ${peso(v.spent)}, Added ${peso(v.added)})`;
           }
-          
-          newAmt = Math.max(0, newAmt); // Prevent negative budget
-          
-          // Save the log to local history with a timestamp
+          newAmt = Math.max(0, newAmt);
           historyStore.add({
             msg: logMsg,
             time: new Date().toLocaleTimeString("en-PH", { hour: 'numeric', minute: '2-digit' }),
             date: new Date().toLocaleDateString("en-PH", { month: 'short', day: 'numeric' })
           });
-          
           S.budget = await run("saveBudget", row, it.desc, newAmt);
         }
       });
-    // --------------------------------------
-
     } else if (a === "bud-add" || a === "bud-edit") {
       const it = row ? byRow(S.budget.items, row) : null;
       openModal({
