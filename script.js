@@ -10,20 +10,6 @@ const store = {
   clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
 };
 
-// Manages the 3 most recent budget logs locally
-const historyStore = {
-  get: () => {
-    try { return JSON.parse(localStorage.getItem("budget_history")) || []; }
-    catch (e) { return []; }
-  },
-  add: (log) => {
-    const logs = historyStore.get();
-    logs.unshift(log);
-    if (logs.length > 3) logs.pop();
-    try { localStorage.setItem("budget_history", JSON.stringify(logs)); } catch (e) {}
-  }
-};
-
 // Calls Apps Script backend over HTTP from GitHub Pages
 const run = async (fn, ...args) => {
   const res = await fetch(GAS_URL, {
@@ -47,15 +33,14 @@ const run = async (fn, ...args) => {
 const peso = (n) => "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const parseNum = (s) => Number(String(s).replace(/[^0-9.\-]/g, "")) || 0;
 
-// Uses replaceAll with plain strings to prevent quote corruption
 const esc = (s) => {
   if (s == null) return "";
   return String(s)
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll('"', '"')
-    .replaceAll("'", "'");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 };
 
 const compact = (n) => (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(Math.round(n)));
@@ -180,7 +165,7 @@ function renderHome() {
     html += `<div class="card"><h2>Net gain per month</h2><div class="chart" style="justify-content:space-between;">` +
       d.months.map((m, i) => {
         const parts = m.month.split(" ");
-        const label = parts[0].slice(0, 3) + (parts[1] ? " '" + parts[1].slice(-2) : "");
+        const label = parts[0].slice(0, 3) + (parts[1] ? " ’" + parts[1].slice(-2) : "");
         return `<div class="col" style="flex:1; min-width:34px;">
           <em>${compact(nets[i])}</em>
           <i style="height:${Math.max(2, (nets[i] / max) * 100)}px"></i>
@@ -217,7 +202,7 @@ function renderHome() {
 function renderSalary() {
   const s = S.salary;
   if (!s || s.error) return errCard(s);
-  
+
   return `
   <div class="card hero">
     <div class="hero-head">
@@ -227,16 +212,16 @@ function renderSalary() {
       </div>
       <button class="btn ghost" data-a="sal-edit-dates">Edit</button>
     </div>
-    
+
     <div class="big">${peso(s.deducted)}</div>
     <div class="sub" style="margin-top:2px">Take-home salary</div>
-    
+
     <div class="stats" style="margin-top:14px">
       <div class="stat"><b>${peso(s.expected)}</b><span>Gross expected</span></div>
       <div class="stat"><b>${peso(s.daily)}</b><span>Daily rate</span></div>
     </div>
   </div>
-  
+
   <div class="card">
     <div class="addbar">
       <h2 style="margin:0">Work breakdown</h2>
@@ -301,6 +286,45 @@ function renderDebts() {
 }
 
 /* ---------- budget ---------- */
+function moneyUsedCard(b, forMe) {
+  const used = b.used || { total: 0, items: [], entries: [] };
+  const usedPct = forMe > 0 ? Math.min(100, (used.total / forMe) * 100) : 0;
+  const topItem = used.items.length ? used.items[0].amount || 1 : 1;
+
+  const byItem = used.items.map((it) => `
+    <div class="cat" style="grid-template-columns:1fr auto; padding:6px 0;">
+      <span style="font-weight:600; text-transform:uppercase; letter-spacing:0.02em; font-size:13.5px;">${esc(it.desc)}</span>
+      <b>${peso(it.amount)}</b>
+      <div class="bar" style="grid-column:1 / 3"><i style="width:${Math.min(100, (it.amount / topItem) * 100)}%"></i></div>
+    </div>`).join("");
+
+  const recent = used.entries.slice(0, 6).map((e) => `
+    <div class="row">
+      <div class="body">
+        <div class="t" style="font-size:14px; text-transform:uppercase;">${esc(e.desc)}</div>
+        <div class="s">${esc(e.date)} · ${esc(e.time)}</div>
+      </div>
+      <div class="amt">${peso(e.amount)}</div>
+      <button class="btn ghost" data-a="bud-undo" data-id="${esc(e.id)}" style="padding:4px 10px; font-size:12px; border-radius:10px;" aria-label="Undo ${esc(e.desc)} ${peso(e.amount)}">Undo</button>
+    </div>`).join("");
+
+  return `
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+      <h2 style="margin:0">Money used</h2>
+      <span style="font-size:12px; color:var(--mute);">This pay period</span>
+    </div>
+    <div style="font-family:var(--serif); font-size:34px; font-weight:700; letter-spacing:-0.02em; line-height:1.1; margin-top:8px;">${peso(used.total)}</div>
+    <div style="font-size:13px; color:var(--mute); margin-top:2px;">${forMe > 0 ? usedPct.toFixed(1) + "% of what’s for me" : "spent so far"}</div>
+    <div class="meter"><i style="width:${usedPct}%"></i></div>
+    ${used.total > 0 ? `
+      <div style="margin-top:10px;">${byItem}</div>
+      <div style="margin-top:12px; font-size:13px; font-weight:600; color:var(--mute);">Recent spends</div>
+      ${recent}`
+    : `<div class="empty" style="padding:16px 0 4px; font-size:13.5px;">Nothing spent yet this pay period. Tap LOG on an item and enter what you spent.</div>`}
+  </div>`;
+}
+
 function renderBudget() {
   const b = S.budget;
   if (!b || b.error) return errCard(b);
@@ -354,6 +378,8 @@ function renderBudget() {
     </div>
   </div>
 
+  ${moneyUsedCard(b, forMe)}
+
   <div class="card">
     <div class="addbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h2 style="margin:0;">Plan</h2>
@@ -365,7 +391,7 @@ function renderBudget() {
         const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
         return `
         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:12px;">
-          <button data-a="bud-toggle" data-row="${it.row}" style="
+          <button data-a="bud-toggle" data-row="${it.row}" aria-label="Mark ${esc(it.desc)} as ${it.done ? "not done" : "done"}" style="
             width:26px; height:26px; min-width:26px; border-radius:8px;
             background:${it.done ? 'var(--accent)' : 'transparent'};
             border:2px solid var(--accent);
@@ -388,10 +414,10 @@ function renderBudget() {
             </b>
             <div style="display:flex; align-items:center; gap:2px;">
               <button data-a="bud-log" data-row="${it.row}" style="
-                background:var(--soft); color:var(--accent); border:none; 
+                background:var(--soft); color:var(--accent-text, var(--accent)); border:none;
                 padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
               ">LOG</button>
-              <button data-a="bud-edit" data-row="${it.row}" style="
+              <button data-a="bud-edit" data-row="${it.row}" aria-label="Edit ${esc(it.desc)}" style="
                 background:transparent; border:none; cursor:pointer; color:var(--mute);
                 font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
               ">✎</button>
@@ -402,7 +428,7 @@ function renderBudget() {
     </div>
   </div>
 
-  <!-- Recent Activity (Synchronized Across All Sessions) -->
+  <!-- Recent Activity (synchronized across all sessions) -->
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <h2 style="margin:0; font-size:16px;">Recent Activity</h2>
@@ -500,7 +526,11 @@ function openModal(cfg) {
   const busy = async (fn) => {
     const btns = m.querySelectorAll("button"); btns.forEach((b) => (b.disabled = true));
     try { await fn(); close(); render(); }
-    catch (e) { toast(String((e && e.message) || "Couldn't save. Try again.")); btns.forEach((b) => (b.disabled = false)); }
+    catch (e) {
+      if (locked) { close(); render(); return; }
+      toast(String((e && e.message) || "Couldn’t save. Try again."));
+      btns.forEach((b) => (b.disabled = false));
+    }
   };
   $("#m_save").onclick = () => {
     const vals = {};
@@ -552,7 +582,7 @@ $("#app").addEventListener("click", async (e) => {
                  { k: "otrh", label: "Overtime on Regular Holiday (OT/RH)", type: "number", value: getC("OT/RH") },
                  { k: "erh", label: "Evening on Regular Holiday (E/RH)", type: "number", value: getC("E/RH") },
                  { k: "euh", label: "Evening on US Holiday (E/UH)", type: "number", value: getC("E/UH") }],
-        save: async (v) => { 
+        save: async (v) => {
           S.salary = await run("saveSalaryHours", [
             { t: "BASIC", v: v.basic },
             { t: "EVENING", v: v.eve },
@@ -563,7 +593,7 @@ $("#app").addEventListener("click", async (e) => {
             { t: "OT/RH", v: v.otrh },
             { t: "E/RH", v: v.erh },
             { t: "E/UH", v: v.euh }
-          ]); 
+          ]);
         }
       });
 
@@ -596,33 +626,20 @@ $("#app").addEventListener("click", async (e) => {
       const it = byRow(S.budget.items, row);
       if (!it) return;
       openModal({
-        title: `Track ${esc(it.desc)}`,
+        title: "Track " + it.desc,
         fields: [
-          { k: "spent", label: "Amount spent (Subtracts from budget ₱)", type: "number", ph: "e.g. 200" },
-          { k: "added", label: "Amount added (Increases budget ₱)", type: "number", ph: "e.g. 500" }
+          { k: "spent", label: "Amount spent (subtracts from this item, counts as money used)", type: "number", ph: "e.g. 200" },
+          { k: "added", label: "Amount added (increases this item)", type: "number", ph: "e.g. 500" }
         ],
+        // The server applies the change to the sheet's current amount and records the spend
         save: async (v) => {
           if (!v.spent && !v.added) return;
-          let newAmt = it.amount;
-          let logMsg = "";
-          if (v.spent) {
-            const spent = Math.abs(Number(v.spent));
-            newAmt -= spent;
-            logMsg = `Spent ${peso(spent)} on ${it.desc}`;
-          }
-          if (v.added) {
-            const added = Math.abs(Number(v.added));
-            newAmt += added;
-            logMsg = `Added ${peso(added)} to ${it.desc}`;
-          }
-          if (v.spent && v.added) {
-            logMsg = `Adjusted ${it.desc} (Spent ${peso(v.spent)}, Added ${peso(v.added)})`;
-          }
-          newAmt = Math.max(0, newAmt);
-          // Sends the log message to Apps Script backend so it's stored globally
-          S.budget = await run("saveBudget", row, it.desc, newAmt, logMsg);
+          S.budget = await run("logBudget", row, v.spent || 0, v.added || 0);
         }
       });
+    } else if (a === "bud-undo") {
+      if (!confirm("Undo this spend? It comes off Money used and goes back into the item.")) return;
+      S.budget = await run("undoBudgetSpend", el.dataset.id); render();
     } else if (a === "bud-add" || a === "bud-edit") {
       const it = row ? byRow(S.budget.items, row) : null;
       openModal({
@@ -674,7 +691,7 @@ $("#app").addEventListener("click", async (e) => {
       });
     }
   } catch (err) {
-    toast("That didn't save. Refresh and try again.");
+    if (!locked) toast(String((err && err.message) || "That didn’t save. Refresh and try again."));
     load();
   }
 });
