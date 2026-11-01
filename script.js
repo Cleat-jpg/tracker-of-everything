@@ -256,18 +256,25 @@ function renderDebts() {
   if (!d || d.error) return errCard(d);
   const paid = d.items.filter((i) => i.paid).reduce((a, i) => a + i.amount, 0);
   const pct = d.total ? Math.round((paid / d.total) * 100) : 0;
+
   return `
-  <div class="card">
-    <div class="addbar"><h2 style="margin:0">Payday ${esc(niceDate(d.date))}</h2><button class="btn ghost" data-a="debt-head">Edit</button></div>
-    <div class="kv" style="margin-top:12px">
-      <div><span>Salary</span><b>${peso(d.salary)}</b></div>
-      <div><span>Debts</span><b>${peso(d.total)}</b></div>
-      <div><span>For me</span><b>${peso(d.forMe)}</b></div>
-      <div><span>Paid so far</span><b>${peso(paid)}</b></div>
+  <div class="card hero">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0; font-size:20px;">Payday ${esc(niceDate(d.date))}</h2>
+      <button class="btn ghost" data-a="debt-head" style="padding:6px 14px; font-size:13px;">Edit</button>
     </div>
+
+    <div class="stats" style="margin-top:0;">
+      <div class="stat"><span>Salary</span><b>${peso(d.salary)}</b></div>
+      <div class="stat"><span>Debts</span><b>${peso(d.total)}</b></div>
+      <div class="stat"><span>For me</span><b>${peso(d.forMe)}</b></div>
+      <div class="stat"><span>Paid so far</span><b>${peso(paid)}</b></div>
+    </div>
+
     <div class="meter"><i style="width:${pct}%"></i></div>
-    <div class="s muted" style="font-size:13px">${pct}% of this period’s debts paid</div>
+    <div class="sub" style="margin-top:6px; font-size:12.5px;">${pct}% of this period’s debts paid</div>
   </div>
+
   <div class="card">
     <div class="addbar"><h2 style="margin:0">To pay</h2><button class="btn" data-a="debt-add">Add debt</button></div>
     ${d.items.length ? d.items.map((i) => `
@@ -288,13 +295,11 @@ function renderBudget() {
   const forMe = b.forMe || 0;
   const items = b.items || [];
 
-  // Calculate totals directly from amounts
   const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
   const left = forMe - totalAssigned;
   const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
   const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
 
-  // Clean date formatter that avoids "undefined NaN"
   let dateLabel = b.date || '–';
   if (b.date) {
     const d = new Date(b.date);
@@ -310,27 +315,25 @@ function renderBudget() {
   }
 
   return `
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h2 style="margin:0; font-size:18px;">Budget for ${esc(dateLabel)}</h2>
+  <div class="card hero">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0; font-size:20px;">Budget for ${esc(dateLabel)}</h2>
       <button class="btn ghost" data-a="bud-head" style="padding:6px 14px; font-size:13px;">Edit</button>
     </div>
 
-    <div class="stats" style="display:flex; gap:12px; margin-bottom:14px;">
-      <div class="stat" style="flex:1; background:var(--soft); border-radius:12px; padding:12px 14px;">
-        <span style="font-size:12px; color:var(--mute); display:block; margin-bottom:4px;">For me</span>
-        <b style="font-size:18px; font-weight:700; color:var(--ink);">${peso(forMe)}</b>
+    <div class="stats" style="margin-top:0;">
+      <div class="stat">
+        <span>For me</span>
+        <b>${peso(forMe)}</b>
       </div>
-      <div class="stat" style="flex:1; background:var(--soft); border-radius:12px; padding:12px 14px;">
-        <span style="font-size:12px; color:var(--mute); display:block; margin-bottom:4px;">Left to assign</span>
-        <b style="font-size:18px; font-weight:700; color:var(--ink);">${peso(left)}</b>
+      <div class="stat">
+        <span>Left to assign</span>
+        <b>${peso(left)}</b>
       </div>
     </div>
 
-    <div class="bar" style="height:8px; background:var(--soft); border-radius:99px; overflow:hidden; margin-bottom:8px;">
-      <i style="display:block; height:100%; background:var(--accent); width:${assignedPctClamped}%; border-radius:99px;"></i>
-    </div>
-    <div style="font-size:12px; color:var(--mute);">
+    <div class="meter"><i style="width:${assignedPctClamped}%"></i></div>
+    <div class="sub" style="font-size:12.5px; margin-top:6px;">
       ${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned
     </div>
   </div>
@@ -346,7 +349,6 @@ function renderBudget() {
         const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
         return `
         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:12px;">
-          <!-- Checkbox -->
           <button data-a="bud-toggle" data-row="${it.row}" style="
             width:26px; height:26px; min-width:26px; border-radius:8px;
             background:${it.done ? 'var(--accent)' : 'transparent'};
@@ -355,7 +357,6 @@ function renderBudget() {
             cursor:pointer; color:var(--accent-ink); font-size:14px; font-weight:bold; padding:0; outline:none;
           ">${it.done ? '✓' : ''}</button>
 
-          <!-- Description & Auto-calculated % -->
           <div style="flex:1; min-width:0;">
             <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:var(--ink);'}">
               ${esc(it.desc)}
@@ -365,12 +366,10 @@ function renderBudget() {
             </div>
           </div>
 
-          <!-- Amount -->
           <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
             ${peso(it.amount)}
           </b>
 
-          <!-- Edit Pencil -->
           <button data-a="bud-edit" data-row="${it.row}" style="
             background:transparent; border:none; cursor:pointer; color:var(--mute);
             font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
