@@ -317,20 +317,20 @@ function renderBudget() {
     </div>
 
     <div class="stats" style="display:flex; gap:12px; margin-bottom:14px;">
-      <div class="stat" style="flex:1; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px 14px;">
-        <span style="font-size:12px; color:var(--mute, #a89ba2); display:block; margin-bottom:4px;">For me</span>
-        <b style="font-size:18px; font-weight:700; color:#fff;">${peso(forMe)}</b>
+      <div class="stat" style="flex:1; background:var(--soft); border-radius:12px; padding:12px 14px;">
+        <span style="font-size:12px; color:var(--mute); display:block; margin-bottom:4px;">For me</span>
+        <b style="font-size:18px; font-weight:700; color:var(--ink);">${peso(forMe)}</b>
       </div>
-      <div class="stat" style="flex:1; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px 14px;">
-        <span style="font-size:12px; color:var(--mute, #a89ba2); display:block; margin-bottom:4px;">Left to assign</span>
-        <b style="font-size:18px; font-weight:700; color:#fff;">${peso(left)}</b>
+      <div class="stat" style="flex:1; background:var(--soft); border-radius:12px; padding:12px 14px;">
+        <span style="font-size:12px; color:var(--mute); display:block; margin-bottom:4px;">Left to assign</span>
+        <b style="font-size:18px; font-weight:700; color:var(--ink);">${peso(left)}</b>
       </div>
     </div>
 
-    <div class="bar" style="height:8px; background:rgba(255,255,255,0.1); border-radius:99px; overflow:hidden; margin-bottom:8px;">
-      <i style="display:block; height:100%; background:var(--accent, #be1759); width:${assignedPctClamped}%; border-radius:99px;"></i>
+    <div class="bar" style="height:8px; background:var(--soft); border-radius:99px; overflow:hidden; margin-bottom:8px;">
+      <i style="display:block; height:100%; background:var(--accent); width:${assignedPctClamped}%; border-radius:99px;"></i>
     </div>
-    <div style="font-size:12px; color:var(--mute, #a89ba2);">
+    <div style="font-size:12px; color:var(--mute);">
       ${peso(totalAssigned)} assigned · ${unassignedPct}% unassigned
     </div>
   </div>
@@ -345,34 +345,34 @@ function renderBudget() {
       ${items.map((it) => {
         const itemPct = forMe > 0 ? ((it.amount / forMe) * 100).toFixed(1) : "0.0";
         return `
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:12px;">
           <!-- Checkbox -->
           <button data-a="bud-toggle" data-row="${it.row}" style="
             width:26px; height:26px; min-width:26px; border-radius:8px;
-            background:${it.done ? 'var(--accent, #be1759)' : 'rgba(255,255,255,0.05)'};
-            border:2px solid ${it.done ? 'var(--accent, #be1759)' : 'rgba(255,255,255,0.2)'};
+            background:${it.done ? 'var(--accent)' : 'transparent'};
+            border:2px solid ${it.done ? 'var(--accent)' : 'var(--accent)'};
             display:flex; align-items:center; justify-content:center;
-            cursor:pointer; color:#fff; font-size:14px; font-weight:bold; padding:0; outline:none;
+            cursor:pointer; color:var(--accent-ink); font-size:14px; font-weight:bold; padding:0; outline:none;
           ">${it.done ? '✓' : ''}</button>
 
           <!-- Description & Auto-calculated % -->
           <div style="flex:1; min-width:0;">
-            <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:#fff;'}">
+            <div style="font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; ${it.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:var(--ink);'}">
               ${esc(it.desc)}
             </div>
-            <div style="font-size:12px; color:var(--mute, #a89ba2); margin-top:2px;">
+            <div style="font-size:12px; color:var(--mute); margin-top:2px;">
               ${itemPct}% of what’s for me
             </div>
           </div>
 
           <!-- Amount -->
-          <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute, #a89ba2);' : 'color:#fff;'}">
+          <b style="font-size:15px; font-weight:700; white-space:nowrap; ${it.done ? 'text-decoration:line-through; opacity:0.5; color:var(--mute);' : 'color:var(--ink);'}">
             ${peso(it.amount)}
           </b>
 
           <!-- Edit Pencil -->
           <button data-a="bud-edit" data-row="${it.row}" style="
-            background:transparent; border:none; cursor:pointer; color:var(--mute, #a89ba2);
+            background:transparent; border:none; cursor:pointer; color:var(--mute);
             font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
           ">✎</button>
         </div>`;
