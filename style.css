@@ -674,3 +674,6 @@ nav button:focus-visible {
   color: var(--accent-ink);
   opacity: 0.88;
 }
+
+.amt.plus { color: var(--good); }
+.amt.minus { color: var(--warn); }
