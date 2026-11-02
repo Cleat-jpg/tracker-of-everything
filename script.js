@@ -66,6 +66,7 @@ async function load() {
   render();
   try {
     S = await run("getAll");
+    try { const r = await run("getRepay"); if (S) S.repay = r; } catch (e) { if (S) S.repay = null; }
     loadError = "";
   } catch (e) {
     if (!locked) {
@@ -453,6 +454,33 @@ function renderBudget() {
 }
 
 /* ---------- savings ---------- */
+function repayCard(r) {
+  if (!r) return '<div class="card"><h2>To repay</h2><div class="empty" style="padding:12px 0">Repay tracker isn’t connected yet.</div></div>';
+  const hist = (r.history || []).map((h) => `
+    <div class="row">
+      <div class="body">
+        <div class="t" style="font-size:14px">${h.type === "sub" ? "Subtracted" : "Added"}${h.note ? " · " + esc(h.note) : ""}</div>
+        <div class="s">${esc(h.date)} · ${esc(h.time)}</div>
+      </div>
+      <div class="amt ${h.type === "sub" ? "minus" : "plus"}">${h.type === "sub" ? "−" : "+"}${peso(h.amount)}</div>
+    </div>`).join("");
+  return `
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+      <h2 style="margin:0">To repay</h2>
+      <span style="font-size:12px; color:var(--mute);">This month</span>
+    </div>
+    <div style="font-family:var(--serif); font-size:34px; font-weight:700; letter-spacing:-0.02em; line-height:1.1; margin-top:8px;">${peso(r.month)}</div>
+    <div style="font-size:13px; color:var(--mute); margin-top:2px;">${peso(r.total)} all-time</div>
+    <div class="actions">
+      <button class="btn" data-a="rep-add">Add</button>
+      <button class="btn ghost" data-a="rep-sub">Subtract</button>
+    </div>
+    <div style="margin-top:14px; font-size:13px; font-weight:600; color:var(--mute);">Last 3 changes</div>
+    ${hist || '<div class="empty" style="padding:14px 0 4px; font-size:13.5px;">Nothing logged yet.</div>'}
+  </div>`;
+}
+
 function renderSavings() {
   const s = S.savings;
   if (!s || s.error) return errCard(s);
@@ -462,6 +490,7 @@ function renderSavings() {
     <div class="big">${peso(s.total)}</div>
     <div class="sub">${s.items.length} entries</div>
   </div>
+  ${repayCard(S.repay)}
   <div class="card">
     <div class="addbar"><h2 style="margin:0">Entries</h2><button class="btn" data-a="sav-add">Add savings</button></div>
     ${s.items.length ? s.items.map((i) => `
@@ -472,6 +501,19 @@ function renderSavings() {
       </div>`).join("") : '<div class="empty">No savings logged yet.</div>'}
   </div>`;
 }
+
+    /* repay */
+    } else if (a === "rep-add" || a === "rep-sub") {
+      const sub = a === "rep-sub";
+      openModal({
+        title: sub ? "Subtract from repay total" : "Add to repay total",
+        fields: [{ k: "amt", label: "Amount (₱)", type: "number", req: true, ph: "e.g. 500" },
+                 { k: "note", label: "Note (optional)", ph: sub ? "e.g. Repaid early" : "e.g. 1st cut off" }],
+        save: async (v) => {
+          if (!(Number(v.amt) > 0)) throw new Error("Enter an amount above 0.");
+          S.repay = await run("logRepay", v.amt, sub ? "sub" : "add", v.note);
+        }
+      });
 
 /* ---------- to-do ---------- */
 function renderTodo() {
