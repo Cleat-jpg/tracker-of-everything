@@ -455,7 +455,7 @@ function renderBudget() {
 
 /* ---------- savings ---------- */
 function repayCard(r) {
-  if (!r) return '<div class="card"><h2>To repay</h2><div class="empty" style="padding:12px 0">Repay tracker isn’t connected yet.</div></div>';
+  if (!r) return '<div class="card"><h2>For repayment</h2><div class="empty" style="padding:12px 0">Repay tracker isn’t connected yet.</div></div>';
   const hist = (r.history || []).map((h) => `
     <div class="row">
       <div class="body">
