@@ -502,19 +502,6 @@ function renderSavings() {
   </div>`;
 }
 
-    /* repay */
-    } else if (a === "rep-add" || a === "rep-sub") {
-      const sub = a === "rep-sub";
-      openModal({
-        title: sub ? "Subtract from repay total" : "Add to repay total",
-        fields: [{ k: "amt", label: "Amount (₱)", type: "number", req: true, ph: "e.g. 500" },
-                 { k: "note", label: "Note (optional)", ph: sub ? "e.g. Repaid early" : "e.g. 1st cut off" }],
-        save: async (v) => {
-          if (!(Number(v.amt) > 0)) throw new Error("Enter an amount above 0.");
-          S.repay = await run("logRepay", v.amt, sub ? "sub" : "add", v.note);
-        }
-      });
-
 /* ---------- to-do ---------- */
 function renderTodo() {
   const t = S.todos;
@@ -711,7 +698,18 @@ $("#app").addEventListener("click", async (e) => {
         save: async (v) => { S.savings = await run("saveSaving", row || null, v.desc, v.amt); },
         del: it ? async () => { S.savings = await run("deleteSaving", row); } : null
       });
-
+    /* repay */
+    } else if (a === "rep-add" || a === "rep-sub") {
+      const sub = a === "rep-sub";
+      openModal({
+        title: sub ? "Subtract from repay total" : "Add to repay total",
+        fields: [{ k: "amt", label: "Amount (₱)", type: "number", req: true, ph: "e.g. 500" },
+                 { k: "note", label: "Note (optional)", ph: sub ? "e.g. Repaid early" : "e.g. 1st cut off" }],
+        save: async (v) => {
+          if (!(Number(v.amt) > 0)) throw new Error("Enter an amount above 0.");
+          S.repay = await run("logRepay", v.amt, sub ? "sub" : "add", v.note);
+        }
+      });
     /* to-do */
     } else if (a === "todo-toggle") {
       const it = byRow(S.todos.items, row); it.done = !it.done; render();
