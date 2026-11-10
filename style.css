@@ -122,12 +122,11 @@ header small {
   word-break: break-word;
 }
 
+/* Colors come from ".hero .btn.ghost" further down */
 .hero-head .btn.ghost {
   flex-shrink: 0;
   padding: 6px 14px;
   font-size: 13px;
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
 }
 
 /* Prevent mobile clipping on the salary breakdown table */
@@ -677,3 +676,125 @@ nav button:focus-visible {
 
 .amt.plus { color: var(--good); }
 .amt.minus { color: var(--warn); }
+
+/* ---------- cut-off calendar (Salary → Plan days) ---------- */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.cal-nav b {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cal-nav .btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal em {
+  font-style: normal;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mute);
+  padding: 2px 0 4px;
+}
+
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.cal-day small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-top: 1px;
+}
+
+/* Holidays (outside the selected range) */
+.cal-day.h-RH small { color: var(--accent); }
+.cal-day.h-SH small { color: var(--warn); }
+.cal-day.h-UH small { color: var(--good); }
+.cal-day.h-RH { border-color: var(--accent); }
+
+/* Days inside the cut-off */
+.cal-day.in {
+  background: var(--soft);
+  border-color: var(--soft);
+}
+
+/* First and last day */
+.cal-day.edge {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.cal-day.edge small { color: var(--accent-ink); }
+
+/* Days off */
+.cal-day.off {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--mute);
+  text-decoration: line-through;
+}
+
+.cal-day.edge.off {
+  background: transparent;
+  color: var(--mute);
+  border-color: var(--accent);
+}
+
+.cal-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cal-shift {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cal-shift label {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+@media (max-width: 380px) {
+  .cal-shift { grid-template-columns: 1fr 1fr; }
+  .cal-day { min-height: 34px; font-size: 13px; }
+}
