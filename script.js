@@ -227,6 +227,7 @@ function renderSalary() {
     <div class="addbar">
       <h2 style="margin:0">Work breakdown</h2>
       <button class="btn" data-a="sal-edit-hours" style="padding:7px 14px; font-size:13px">Edit hours</button>
+      <button class="btn ghost" data-a="sal-plan" style="padding:7px 14px; font-size:13px">Plan days</button>
     </div>
     <div class="scroll" style="margin-top:10px">
       <table class="table-responsive">
@@ -333,7 +334,9 @@ function renderBudget() {
   const forMe = b.forMe || 0;
   const items = b.items || [];
 
-  const totalAssigned = items.reduce((sum, it) => sum + (it.amount || 0), 0);
+   const totalAssigned =
+    items.reduce((sum, it) => sum + (it.done ? 0 : (it.amount || 0)), 0) +
+    ((b.used && b.used.total) || 0);
   const left = forMe - totalAssigned;
   const unassignedPct = forMe > 0 ? ((left / forMe) * 100).toFixed(1) : "0.0";
   const assignedPctClamped = forMe > 0 ? Math.min(100, Math.max(0, (totalAssigned / forMe) * 100)) : 0;
@@ -414,10 +417,10 @@ function renderBudget() {
               ${peso(it.amount)}
             </b>
             <div style="display:flex; align-items:center; gap:2px;">
-              <button data-a="bud-log" data-row="${it.row}" style="
+              ${it.done ? "" : `<button data-a="bud-log" data-row="${it.row}" style="
                 background:var(--soft); color:var(--accent-text, var(--accent)); border:none;
                 padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
-              ">LOG</button>
+              ">LOG</button>`}
               <button data-a="bud-edit" data-row="${it.row}" aria-label="Edit ${esc(it.desc)}" style="
                 background:transparent; border:none; cursor:pointer; color:var(--mute);
                 font-size:16px; padding:4px 6px; display:flex; align-items:center; justify-content:center; outline:none;
@@ -588,11 +591,12 @@ $("#app").addEventListener("click", async (e) => {
   const a = el.dataset.a, row = Number(el.dataset.row) || 0;
   try {
     /* salary */
+    if (a === "sal-plan") { openCalendar(); } else
     if (a === "sal-edit-dates") {
       openModal({
         title: "Edit Coverage Dates",
-        fields: [{ k: "start", label: "Start Date", type: "date", value: niceIso(S.salary.start), req: true },
-                 { k: "end", label: "End Date", type: "date", value: niceIso(S.salary.end), req: true }],
+        fields: [{ k: "start", label: "Start Date", type: "date", value: S.salary.startIso || niceIso(S.salary.start), req: true },
+                 { k: "end", label: "End Date", type: "date", value: S.salary.endIso || niceIso(S.salary.end), req: true }],
         save: async (v) => { S.salary = await run("saveSalaryDates", v.start, v.end); }
       });
     } else if (a === "sal-edit-hours") {
@@ -695,8 +699,9 @@ $("#app").addEventListener("click", async (e) => {
         title: it ? "Edit savings" : "Add savings",
         fields: [{ k: "desc", label: "Description", value: it ? it.desc : "", req: true, ph: "e.g. 1st cut off of Nov" },
                  { k: "amt", label: "Amount (₱)", type: "number", value: it ? it.amount : "", req: true }],
-        save: async (v) => { S.savings = await run("saveSaving", row || null, v.desc, v.amt); },
-        del: it ? async () => { S.savings = await run("deleteSaving", row); } : null
+        // Sends the name you tapped so the server can refuse if that row changed on another device
+        save: async (v) => { S.savings = await run("saveSaving", row || null, v.desc, v.amt, it ? it.desc : null); },
+        del: it ? async () => { S.savings = await run("deleteSaving", row, it.desc); } : null
       });
     /* repay */
     } else if (a === "rep-add" || a === "rep-sub") {
@@ -735,5 +740,184 @@ $("#app").addEventListener("click", async (e) => {
     load();
   }
 });
+
+/* ---------- holidays + cut-off calendar ---------- */
+const H = (t, n) => [t, n];
+const PH = {
+  // 2026 (Proclamation 1006)
+  "2026-01-01": H("RH","New Year's Day"), "2026-04-02": H("RH","Maundy Thursday"), "2026-04-03": H("RH","Good Friday"),
+  "2026-04-09": H("RH","Araw ng Kagitingan"), "2026-05-01": H("RH","Labor Day"), "2026-06-12": H("RH","Independence Day"),
+  "2026-08-31": H("RH","National Heroes Day"), "2026-11-30": H("RH","Bonifacio Day"), "2026-12-25": H("RH","Christmas Day"),
+  "2026-12-30": H("RH","Rizal Day"),
+  "2026-02-17": H("SH","Chinese New Year"), "2026-04-04": H("SH","Black Saturday"), "2026-08-21": H("SH","Ninoy Aquino Day"),
+  "2026-11-01": H("SH","All Saints' Day"), "2026-11-02": H("SH","All Souls' Day"), "2026-12-08": H("SH","Immaculate Conception"),
+  "2026-12-24": H("SH","Christmas Eve"), "2026-12-31": H("SH","Last Day of the Year"),
+  // 2027 (Proclamation 1427)
+  "2027-01-01": H("RH","New Year's Day"), "2027-03-25": H("RH","Maundy Thursday"), "2027-03-26": H("RH","Good Friday"),
+  "2027-04-09": H("RH","Araw ng Kagitingan"), "2027-05-01": H("RH","Labor Day"), "2027-06-12": H("RH","Independence Day"),
+  "2027-08-30": H("RH","National Heroes Day"), "2027-11-30": H("RH","Bonifacio Day"), "2027-12-25": H("RH","Christmas Day"),
+  "2027-12-30": H("RH","Rizal Day"),
+  "2027-02-06": H("SH","Chinese New Year"), "2027-03-27": H("SH","Black Saturday"), "2027-08-21": H("SH","Ninoy Aquino Day"),
+  "2027-11-01": H("SH","All Saints' Day"), "2027-11-02": H("SH","All Souls' Day"), "2027-12-08": H("SH","Immaculate Conception"),
+  "2027-12-24": H("SH","Christmas Eve"), "2027-12-31": H("SH","Last Day of the Year")
+};
+// Add anything announced later, e.g. "2027-03-10": ["RH", "Eid'l Fitr"]. These win over everything else.
+const EXTRA = {};
+
+const p2 = (n) => String(n).padStart(2, "0");
+const isoOf = (d) => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+const nthDow = (y, m, dow, n) => {
+  if (n > 0) return 1 + ((dow - new Date(y, m, 1).getDay() + 7) % 7) + (n - 1) * 7;
+  const l = new Date(y, m + 1, 0); return l.getDate() - ((l.getDay() - dow + 7) % 7);
+};
+const usCache = {};
+function usYear(y) {
+  if (usCache[y]) return usCache[y];
+  const f = (m, d) => y + "-" + p2(m + 1) + "-" + p2(d);
+  // Delete any line your company doesn't pay as a US holiday
+  return (usCache[y] = {
+    [f(0, 1)]: "New Year's Day (US)", [f(0, nthDow(y, 0, 1, 3))]: "MLK Day", [f(1, nthDow(y, 1, 1, 3))]: "Presidents' Day",
+    [f(4, nthDow(y, 4, 1, -1))]: "Memorial Day", [f(5, 19)]: "Juneteenth", [f(6, 4)]: "Independence Day (US)",
+    [f(8, nthDow(y, 8, 1, 1))]: "Labor Day (US)", [f(9, nthDow(y, 9, 1, 2))]: "Columbus Day", [f(10, 11)]: "Veterans Day",
+    [f(10, nthDow(y, 10, 4, 4))]: "Thanksgiving", [f(11, 25)]: "Christmas (US)"
+  });
+}
+function holidayOf(iso) {
+  if (EXTRA[iso]) return EXTRA[iso];
+  if (PH[iso] && PH[iso][0] === "RH") return PH[iso];
+  const us = usYear(Number(iso.slice(0, 4)))[iso];
+  if (us) return ["UH", us];
+  return PH[iso] || null;
+}
+
+const SHIFT_KEY = "tracker_shift";
+const getShift = () => {
+  const d = { start: "10:00", end: "18:00", brk: 0 };
+  try { return Object.assign(d, JSON.parse(localStorage.getItem(SHIFT_KEY) || "{}")); } catch (e) { return d; }
+};
+
+// Hours for one worked day, sorted into the sheet's rows
+function dayHours(shift, type) {
+  const tm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const s = tm(shift.start); let e = tm(shift.end); if (e <= s) e += 1440;
+  const total = Math.max(0, (e - s) / 60 - (Number(shift.brk) || 0));
+  let night = 0;
+  [[0, 360], [1320, 1800], [2760, 3240]].forEach(([a, b]) => { night += Math.max(0, Math.min(e, b) - Math.max(s, a)); });
+  night = Math.min(night / 60, total);
+  const ev = Math.min(night, 8), basic = Math.max(0, Math.min(total, 8) - ev), ot = Math.max(0, total - 8);
+  const o = {};
+  const add = (k, v) => { if (v) o[k] = (o[k] || 0) + v; };
+  if (type === "RH") { add("RH", basic); add("E/RH", ev); add("OT/RH", ot); }
+  else if (type === "UH") { add("UH", basic); add("E/UH", ev); add("OT", ot); }
+  else if (type === "SH") { add("SH", basic + ev); add("OT", ot); }
+  else { add("BASIC", basic); add("EVENING", ev); add("OT", ot); }
+  return o;
+}
+
+let cal = null;
+const CAL_TYPES = ["BASIC", "EVENING", "RH", "UH", "SH", "OT", "OT/RH", "E/RH", "E/UH"];
+
+function calTotals() {
+  const t = {}; CAL_TYPES.forEach((k) => (t[k] = 0));
+  if (!cal.start || !cal.end) return t;
+  for (let d = parseLocal(cal.start), end = parseLocal(cal.end); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = isoOf(d);
+    if (cal.off.has(iso)) continue;
+    const h = holidayOf(iso);
+    const o = dayHours(cal.shift, h ? h[0] : null);
+    for (const k in o) t[k] += o[k];
+  }
+  CAL_TYPES.forEach((k) => (t[k] = Math.round(t[k] * 100) / 100));
+  return t;
+}
+const parseLocal = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+
+function openCalendar() {
+  const t = new Date();
+  cal = { start: "", end: "", off: new Set(), month: new Date(t.getFullYear(), t.getMonth(), 1), shift: getShift() };
+  drawCal();
+}
+function closeCal() { const m = $("#modal"); m.classList.remove("open"); m.innerHTML = ""; cal = null; }
+
+function drawCal() {
+  const m = $("#modal");
+  const y = cal.month.getFullYear(), mo = cal.month.getMonth();
+  const first = new Date(y, mo, 1).getDay(), days = new Date(y, mo + 1, 0).getDate();
+  const step = !cal.start ? "Tap the first day of the cut-off" : !cal.end ? "Now tap the last day" : "Tap the days you're off";
+  let cells = "";
+  for (let i = 0; i < first; i++) cells += "<span></span>";
+  for (let d = 1; d <= days; d++) {
+    const iso = y + "-" + p2(mo + 1) + "-" + p2(d);
+    const inRange = cal.start && (cal.end ? iso >= cal.start && iso <= cal.end : iso === cal.start);
+    const edge = iso === cal.start || iso === cal.end;
+    const off = cal.off.has(iso);
+    const h = holidayOf(iso);
+    const tag = h ? `<small>${h[0] === "UH" ? "US" : h[0]}</small>` : "";
+    cells += `<button class="cal-day${inRange ? " in" : ""}${edge ? " edge" : ""}${off ? " off" : ""}${h ? " h-" + h[0] : ""}" data-d="${iso}" ${h ? `title="${esc(h[1])}"` : ""}>${d}${tag}</button>`;
+  }
+  const tot = calTotals();
+  const sum = CAL_TYPES.filter((k) => tot[k]).map((k) => `<span class="pill">${k} ${tot[k]}h</span>`).join(" ");
+  const sh = cal.shift;
+  m.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Plan cut-off">
+    <h3>Plan this cut-off</h3>
+    <div class="muted" style="margin-bottom:8px">${step}</div>
+    <div class="cal-nav">
+      <button class="btn ghost" data-c="prev" aria-label="Previous month">‹</button>
+      <b>${cal.month.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}</b>
+      <button class="btn ghost" data-c="next" aria-label="Next month">›</button>
+    </div>
+    <div class="cal">${["S","M","T","W","T","F","S"].map((x) => `<em>${x}</em>`).join("")}${cells}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:8px">RH regular · SH special · US holiday. Crossed-out days are days off.</div>
+    <div style="margin-top:12px">${cal.end ? (sum || '<span class="muted">No worked days</span>') : ""}</div>
+    <div class="cal-shift">
+      <label>Shift start<input type="time" data-s="start" value="${esc(sh.start)}"></label>
+      <label>Shift end<input type="time" data-s="end" value="${esc(sh.end)}"></label>
+      <label>Unpaid break (h)<input type="number" step="0.25" data-s="brk" value="${esc(sh.brk)}"></label>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" data-c="reset">Reset</button>
+      <button class="btn ghost" data-c="close">Cancel</button>
+      <button class="btn" data-c="apply" ${cal.end ? "" : "disabled"}>Apply to sheet</button>
+    </div>
+  </div>`;
+  m.classList.add("open");
+  m.onclick = async (e) => {
+    if (e.target === m) return closeCal();
+    const dayEl = e.target.closest("[data-d]"), c = e.target.closest("[data-c]");
+    if (dayEl) {
+      const iso = dayEl.dataset.d;
+      if (!cal.start) cal.start = iso;
+      else if (!cal.end) { if (iso < cal.start) cal.start = iso; else cal.end = iso; }
+      else if (iso >= cal.start && iso <= cal.end) { cal.off.has(iso) ? cal.off.delete(iso) : cal.off.add(iso); }
+      else { cal.start = iso; cal.end = ""; cal.off.clear(); } // tapping outside the range starts a new one
+      drawCal();
+    } else if (c) {
+      const a = c.dataset.c;
+      if (a === "prev") { cal.month = new Date(y, mo - 1, 1); drawCal(); }
+      else if (a === "next") { cal.month = new Date(y, mo + 1, 1); drawCal(); }
+      else if (a === "reset") { cal.start = ""; cal.end = ""; cal.off.clear(); drawCal(); }
+      else if (a === "close") closeCal();
+      else if (a === "apply") {
+        m.querySelectorAll("button").forEach((b) => (b.disabled = true));
+        try {
+          const t = calTotals();
+          S.salary = await run("saveSalaryDates", cal.start, cal.end);
+          S.salary = await run("saveSalaryHours", CAL_TYPES.map((k) => ({ t: k, v: t[k] })));
+          closeCal(); render();
+        } catch (err) {
+          if (locked) { closeCal(); render(); return; }
+          toast(String((err && err.message) || "Couldn’t save. Try again."));
+          drawCal();
+        }
+      }
+    }
+  };
+  m.onchange = (e) => {
+    const k = e.target.dataset.s; if (!k) return;
+    cal.shift[k] = e.target.value;
+    try { localStorage.setItem(SHIFT_KEY, JSON.stringify(cal.shift)); } catch (x) {}
+    drawCal();
+  };
+}
 
 load();
