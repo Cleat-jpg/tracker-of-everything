@@ -215,7 +215,11 @@ function renderSalary() {
     </div>
 
     <div class="big">${peso(s.deducted)}</div>
-    <div class="sub" style="margin-top:2px">Take-home salary</div>
+    <div class="sub" style="margin-top:2px">Take-home salary · ${
+      s.expected - s.deducted >= 0.005
+        ? peso(s.expected - s.deducted) + " deducted"
+        : "no deductions this cut-off"
+    }</div>
 
     <div class="stats" style="margin-top:14px">
       <div class="stat"><b>${peso(s.expected)}</b><span>Gross expected</span></div>
