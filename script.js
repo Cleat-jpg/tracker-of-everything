@@ -226,7 +226,7 @@ function renderSalary() {
   <div class="card">
     <div class="addbar">
       <h2 style="margin:0">Work breakdown</h2>
-      <button class="btn" data-a="sal-edit-hours" style="padding:7px 14px; font-size:13px">Edit hours</button>
+      <button class="btn" data-a="sal-edit-hours" style="padding:7px 14px; font-size:13px">Edit days &amp; hours</button>
       <button class="btn ghost" data-a="sal-plan" style="padding:7px 14px; font-size:13px">Plan days</button>
     </div>
     <div class="scroll" style="margin-top:10px">
@@ -240,7 +240,7 @@ function renderSalary() {
         ${s.workItems.map(i => `
           <tr>
             <td style="text-align:left; font-weight:600">${esc(i.type)}</td>
-            <td>${i.count || '–'}</td>
+            <td>${i.count ? esc(i.count) + ' <span style="color:var(--mute); font-size:12px">' + (unitOf(i.type) === "h" ? "hrs" : (i.count === 1 ? "day" : "days")) + '</span>' : '–'}</td>
             <td style="font-weight:600">${peso(i.pay)}</td>
             <td style="text-align:right; color:var(--mute)">${esc(i.pct)}</td>
           </tr>
@@ -605,16 +605,16 @@ $("#app").addEventListener("click", async (e) => {
         return item ? item.count : "";
       };
       openModal({
-        title: "Update Hours",
-        fields: [{ k: "basic", label: "Basic Hours", type: "number", value: getC("BASIC") },
-                 { k: "eve", label: "Evening Hours", type: "number", value: getC("EVENING") },
-                 { k: "rh", label: "Regular Holiday (RH)", type: "number", value: getC("RH") },
-                 { k: "uh", label: "US Holiday (UH)", type: "number", value: getC("UH") },
-                 { k: "sh", label: "Special Holiday (SH)", type: "number", value: getC("SH") },
-                 { k: "ot", label: "Overtime (OT)", type: "number", value: getC("OT") },
-                 { k: "otrh", label: "Overtime on Regular Holiday (OT/RH)", type: "number", value: getC("OT/RH") },
-                 { k: "erh", label: "Evening on Regular Holiday (E/RH)", type: "number", value: getC("E/RH") },
-                 { k: "euh", label: "Evening on US Holiday (E/UH)", type: "number", value: getC("E/UH") }],
+        title: "Update days & hours",
+        fields: [{ k: "basic", label: "Basic (days worked, holidays included)", type: "number", value: getC("BASIC") },
+                 { k: "eve", label: "Evening (days)", type: "number", value: getC("EVENING") },
+                 { k: "rh", label: "Regular Holiday, RH (days)", type: "number", value: getC("RH") },
+                 { k: "uh", label: "US Holiday, UH (days)", type: "number", value: getC("UH") },
+                 { k: "sh", label: "Special Holiday, SH (days)", type: "number", value: getC("SH") },
+                 { k: "ot", label: "Overtime, OT (hours)", type: "number", value: getC("OT") },
+                 { k: "otrh", label: "Overtime on Regular Holiday, OT/RH (hours)", type: "number", value: getC("OT/RH") },
+                 { k: "erh", label: "Evening on Regular Holiday, E/RH (days)", type: "number", value: getC("E/RH") },
+                 { k: "euh", label: "Evening on US Holiday, E/UH (days)", type: "number", value: getC("E/UH") }],
         save: async (v) => {
           S.salary = await run("saveSalaryHours", [
             { t: "BASIC", v: v.basic },
@@ -796,21 +796,34 @@ const getShift = () => {
   try { return Object.assign(d, JSON.parse(localStorage.getItem(SHIFT_KEY) || "{}")); } catch (e) { return d; }
 };
 
-// Hours for one worked day, sorted into the sheet's rows
-function dayHours(shift, type) {
+// Only these rows are counted in hours; every other row is counted in days
+const HOUR_TYPES = new Set(["OT", "OT/RH"]);
+const unitOf = (type) => (HOUR_TYPES.has(String(type).toUpperCase()) ? "h" : "d");
+
+// What one worked day adds to each of the sheet's rows.
+// BASIC, EVENING, RH, UH, SH, E/RH, E/UH are days (8 hours = 1 day; a shorter shift counts as part of a day).
+// OT and OT/RH are hours past 8.
+// Holiday rows are premiums on top of a normal day (RH 100%, UH 50%, SH 30%),
+// so a worked holiday counts as 1 BASIC day plus 1 day in its holiday row.
+function dayCounts(shift, type) {
   const tm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
   const s = tm(shift.start); let e = tm(shift.end); if (e <= s) e += 1440;
   const total = Math.max(0, (e - s) / 60 - (Number(shift.brk) || 0));
   let night = 0;
   [[0, 360], [1320, 1800], [2760, 3240]].forEach(([a, b]) => { night += Math.max(0, Math.min(e, b) - Math.max(s, a)); });
   night = Math.min(night / 60, total);
-  const ev = Math.min(night, 8), basic = Math.max(0, Math.min(total, 8) - ev), ot = Math.max(0, total - 8);
+
+  const day = Math.min(total, 8) / 8;        // share of a full day worked
+  const eve = Math.min(night, 8) / 8;        // share of a full day in night-differential hours
+  const ot = Math.max(0, total - 8);         // overtime hours
+
   const o = {};
   const add = (k, v) => { if (v) o[k] = (o[k] || 0) + v; };
-  if (type === "RH") { add("RH", basic); add("E/RH", ev); add("OT/RH", ot); }
-  else if (type === "UH") { add("UH", basic); add("E/UH", ev); add("OT", ot); }
-  else if (type === "SH") { add("SH", basic + ev); add("OT", ot); }
-  else { add("BASIC", basic); add("EVENING", ev); add("OT", ot); }
+  add("BASIC", day);
+  if (type === "RH") { add("RH", day); add("E/RH", eve); add("OT/RH", ot); }
+  else if (type === "UH") { add("UH", day); add("E/UH", eve); add("OT", ot); }
+  else if (type === "SH") { add("SH", day); add("EVENING", eve); add("OT", ot); }
+  else { add("EVENING", eve); add("OT", ot); }
   return o;
 }
 
@@ -824,7 +837,7 @@ function calTotals() {
     const iso = isoOf(d);
     if (cal.off.has(iso)) continue;
     const h = holidayOf(iso);
-    const o = dayHours(cal.shift, h ? h[0] : null);
+    const o = dayCounts(cal.shift, h ? h[0] : null);
     for (const k in o) t[k] += o[k];
   }
   CAL_TYPES.forEach((k) => (t[k] = Math.round(t[k] * 100) / 100));
@@ -856,7 +869,7 @@ function drawCal() {
     cells += `<button class="cal-day${inRange ? " in" : ""}${edge ? " edge" : ""}${off ? " off" : ""}${h ? " h-" + h[0] : ""}" data-d="${iso}" ${h ? `title="${esc(h[1])}"` : ""}>${d}${tag}</button>`;
   }
   const tot = calTotals();
-  const sum = CAL_TYPES.filter((k) => tot[k]).map((k) => `<span class="pill">${k} ${tot[k]}h</span>`).join(" ");
+  const sum = CAL_TYPES.filter((k) => tot[k]).map((k) => `<span class="pill">${k} ${tot[k]}${unitOf(k)}</span>`).join(" ");
   const sh = cal.shift;
   m.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Plan cut-off">
     <h3>Plan this cut-off</h3>
